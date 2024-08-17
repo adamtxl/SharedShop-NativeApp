@@ -5,6 +5,7 @@ const {
 const encryptLib = require('../modules/encryption');
 const pool = require('../modules/pool');
 const userStrategy = require('../strategies/user.strategy');
+const bcrypt = require('bcryptjs');
 
 const router = express.Router();
 
@@ -17,20 +18,31 @@ router.get('/', rejectUnauthenticated, (req, res) => {
 // Handles POST request with new user data
 // The only thing different from this and every other post we've seen
 // is that the password gets encrypted before being inserted
-router.post('/register', (req, res, next) => {
-  const username = req.body.username;
-  const password = encryptLib.encryptPassword(req.body.password);
 
-  const queryText = `INSERT INTO "user" (username, password)
-    VALUES ($1, $2) RETURNING id`;
-  pool
-    .query(queryText, [username, password])
-    .then(() => res.sendStatus(201))
-    .catch((err) => {
-      console.log('User registration failed: ', err);
-      res.sendStatus(500);
-    });
+
+router.post('/register', async (req, res) => {
+    const { username, password, email } = req.body;
+    
+    if (!username || !password || !email) {
+        return res.status(400).send('Missing required fields');
+    }
+    
+    try {
+        const password_hash = bcrypt.hashSync(password, 10);
+        
+        const result = await pool.query(
+            'INSERT INTO "user" (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *',
+            [username, email, password_hash]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
 });
+
+module.exports = router;
 
 // Handles login form authenticate/login POST
 // userStrategy.authenticate('local') is middleware that we run on this route
