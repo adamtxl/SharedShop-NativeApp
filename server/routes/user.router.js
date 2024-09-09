@@ -20,26 +20,17 @@ router.get('/', rejectUnauthenticated, (req, res) => {
 // is that the password gets encrypted before being inserted
 
 
-router.post('/register', async (req, res) => {
-    const { username, password, email } = req.body;
-    
-    if (!username || !password || !email) {
-        return res.status(400).send('Missing required fields');
+router.post('/login', (req, res, next) => {
+  userStrategy.authenticate('local', (err, user, info) => {
+    if (err) return next(err);
+    if (!user) {
+      return res.status(401).send('Login failed');  // or customize this message
     }
-    
-    try {
-        const password_hash = bcrypt.hashSync(password, 10);
-        
-        const result = await pool.query(
-            'INSERT INTO "user" (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *',
-            [username, email, password_hash]
-        );
-        
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
+    req.logIn(user, (err) => {
+      if (err) return next(err);
+      return res.sendStatus(200);
+    });
+  })(req, res, next);
 });
 
 module.exports = router;
@@ -48,17 +39,17 @@ module.exports = router;
 // userStrategy.authenticate('local') is middleware that we run on this route
 // this middleware will run our POST if successful
 // this middleware will send a 404 if not successful
-router.post('/login', userStrategy.authenticate('local'), (req, res) => {
-  res.sendStatus(200);
-});
-
-// clear all server session information about this user
-router.post('/logout', (req, res, next) => {
-  // Use passport's built-in method to log out the user
-  req.logout((err) => {
-    if (err) { return next(err); }
-    res.sendStatus(200);
-  });
+router.post('/login', (req, res, next) => {
+  userStrategy.authenticate('local', (err, user, info) => {
+    if (err) return next(err);
+    if (!user) {
+      return res.status(401).send('Login failed');  // or customize this message
+    }
+    req.logIn(user, (err) => {
+      if (err) return next(err);
+      return res.sendStatus(200);
+    });
+  })(req, res, next);
 });
 
 module.exports = router;
