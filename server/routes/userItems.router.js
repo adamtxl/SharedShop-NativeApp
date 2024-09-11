@@ -3,21 +3,45 @@ const pool = require('../modules/pool');
 const router = express.Router();
 
 // Create a new user item
-router.post('/', (req, res) => {
-  const { user_id, item_name, quantity } = req.body;
-  console.log('Received POST request to create user item:', req.body);
-  const queryText = `INSERT INTO user_items (user_id, item_name, quantity) VALUES ($1, $2, $3) RETURNING *`;
-  pool.query(queryText, [user_id, item_name, quantity])
-    .then(result => {
-      console.log('User item created successfully:', result.rows[0]);
-      res.status(201).json(result.rows[0]);
-    })
-    .catch(err => {
+router.post('/', async (req, res) => {
+    const { user_id, item_name, category_id, quantity, shopping_list_id } = req.body;
+    console.log('Received POST request to create user item:', req.body);
+  
+    const client = await pool.connect();
+  
+    try {
+      await client.query('BEGIN');
+  
+      // Insert into user_items table
+      const insertUserItemQuery = `
+        INSERT INTO user_items (user_id, item_name, category_id)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `;
+      const userItemResult = await client.query(insertUserItemQuery, [user_id, item_name, category_id]);
+      const userItemId = userItemResult.rows[0].id;
+  
+      // Insert into list_items table
+      const insertListItemQuery = `
+        INSERT INTO list_items (shopping_list_id, user_item_id, quantity)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `;
+      const listItemResult = await client.query(insertListItemQuery, [shopping_list_id, userItemId, quantity]);
+  
+      await client.query('COMMIT');
+  
+      console.log('User item created successfully:', listItemResult.rows[0]);
+      res.status(201).json(listItemResult.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
       console.error('Error creating user item:', err.message);
       res.status(500).json({ error: err.message });
-    });
-});
-
+    } finally {
+      client.release();
+    }
+  });
+  
 // Get all user items
 router.get('/', (req, res) => {
   console.log('Received GET request to fetch all user items');
