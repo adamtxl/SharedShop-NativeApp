@@ -11,7 +11,7 @@ const passport = require('./strategies/user.strategy');
 // Route Includes
 const userRouter = require('./routes/user.router');
 const shoppingListRouter = require('./routes/shoppingList.router');
-const userItemRouter = require('./routes/userItem.router'); 
+const userItemRouter = require('./routes/userItems.router'); 
 
 
 // Express Middleware

@@ -16,38 +16,37 @@ router.get('/', rejectUnauthenticated, (req, res) => {
 });
 
 // Handles POST request with new user data
-// The only thing different from this and every other post we've seen
-// is that the password gets encrypted before being inserted
+router.post('/register', (req, res, next) => {
+  const username = req.body.username;
+  const password = encryptLib.encryptPassword(req.body.password);
+  const email = req.body.email;
 
-
-router.post('/login', (req, res, next) => {
-  userStrategy.authenticate('local', (err, user, info) => {
-    if (err) return next(err);
-    if (!user) {
-      return res.status(401).send('Login failed');  // or customize this message
-    }
-    req.logIn(user, (err) => {
-      if (err) return next(err);
-      return res.sendStatus(200);
+  const queryText = `INSERT INTO "user" (username, password, email) VALUES ($1, $2, $3) RETURNING id`;
+  pool.query(queryText, [username, password, email])
+    .then(() => res.sendStatus(201))
+    .catch((err) => {
+      console.log('User registration failed: ', err);
+      res.sendStatus(500);
     });
-  })(req, res, next);
 });
 
-module.exports = router;
-
 // Handles login form authenticate/login POST
-// userStrategy.authenticate('local') is middleware that we run on this route
-// this middleware will run our POST if successful
-// this middleware will send a 404 if not successful
 router.post('/login', (req, res, next) => {
   userStrategy.authenticate('local', (err, user, info) => {
     if (err) return next(err);
     if (!user) {
-      return res.status(401).send('Login failed');  // or customize this message
+      return res.status(401).send('Login failed');  // Customize this message if needed
     }
     req.logIn(user, (err) => {
       if (err) return next(err);
-      return res.sendStatus(200);
+      // Send user details back in the response
+      res.status(200).json({
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        }
+      });
     });
   })(req, res, next);
 });
