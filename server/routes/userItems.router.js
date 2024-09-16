@@ -4,43 +4,29 @@ const router = express.Router();
 
 // Create a new user item
 router.post('/', async (req, res) => {
-    const { user_id, item_name, category_id, quantity, shopping_list_id } = req.body;
-    console.log('Received POST request to create user item:', req.body);
-  
-    const client = await pool.connect();
-  
-    try {
-      await client.query('BEGIN');
-  
-      // Insert into user_items table
-      const insertUserItemQuery = `
-        INSERT INTO user_items (user_id, item_name, category_id)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `;
-      const userItemResult = await client.query(insertUserItemQuery, [user_id, item_name, category_id]);
-      const userItemId = userItemResult.rows[0].id;
-  
-      // Insert into list_items table
-      const insertListItemQuery = `
-        INSERT INTO list_items (shopping_list_id, user_item_id, quantity)
-        VALUES ($1, $2, $3)
-        RETURNING *
-      `;
-      const listItemResult = await client.query(insertListItemQuery, [shopping_list_id, userItemId, quantity]);
-  
-      await client.query('COMMIT');
-  
-      console.log('User item created successfully:', listItemResult.rows[0]);
-      res.status(201).json(listItemResult.rows[0]);
-    } catch (err) {
-      await client.query('ROLLBACK');
-      console.error('Error creating user item:', err.message);
-      res.status(500).json({ error: err.message });
-    } finally {
-      client.release();
+  console.log('Received POST request to /user-items:', req.body);
+
+  const { user_id, item_name, category_id } = req.body;
+
+  try {
+    // Check if category exists
+    const categoryCheck = await pool.query('SELECT * FROM categories WHERE id = $1', [category_id]);
+    if (categoryCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid category' });
     }
-  });
+
+    // Proceed with adding the item
+    const newItem = await pool.query(
+      'INSERT INTO user_items (user_id, item_name, category_id) VALUES ($1, $2, $3) RETURNING *',
+      [user_id, item_name, category_id]
+    );
+    
+    res.json(newItem.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error, unable to add item' });
+  }
+});
   
 // Get all user items
 router.get('/', (req, res) => {
