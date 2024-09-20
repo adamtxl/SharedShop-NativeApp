@@ -38,6 +38,7 @@ router.get('/', async (req, res) => {
     SELECT user_items.*, categories.name AS category_name
     FROM user_items
     LEFT JOIN categories ON user_items.category_id = categories.id
+    ORDER BY user_items.item_name ASC
   `;
   try {
     const result = await pool.query(queryText);
@@ -58,6 +59,7 @@ router.get('/user/:user_id', async (req, res) => {
     FROM user_items
     LEFT JOIN categories ON user_items.category_id = categories.id
     WHERE user_items.user_id = $1
+    ORDER BY user_items.item_name ASC
   `;
   try {
     const result = await pool.query(queryText, [user_id]);
