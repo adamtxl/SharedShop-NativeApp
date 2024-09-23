@@ -10,6 +10,23 @@ router.post('/', (req, res) => {
       .then(result => res.status(201).json(result.rows[0]))
       .catch(err => res.status(500).json({ error: err.message }));
   });
+  
+// POST route to add items to a specific shopping list
+
+  router.post('/:list_id/add-items', (req, res) => {
+    const { list_id } = req.params;
+    const { items } = req.body; // Array of item objects with id and quantity
+  
+    const queryText = `INSERT INTO shopping_list_items (list_id, item_id, quantity) VALUES ($1, $2, $3)`;
+  
+    // Insert all items into shopping_list_items table
+    const promises = items.map(item => pool.query(queryText, [list_id, item.id, item.quantity]));
+  
+    Promise.all(promises)
+      .then(() => res.status(200).json({ success: true }))
+      .catch(err => res.status(500).json({ error: err.message }));
+  });
+  
 
 router.get('/', (req, res) => {
     const queryText = `SELECT * FROM shopping_lists`;
